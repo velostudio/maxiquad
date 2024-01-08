@@ -1,3 +1,6 @@
+use std::fs::read;
+use std::path::PathBuf;
+
 use levo::portal::my_imports::{self, Host};
 use macroquad::prelude::*;
 
@@ -5,6 +8,8 @@ use wasmtime::{component::*, StoreLimits, StoreLimitsBuilder};
 use wasmtime::{Config, Engine, Store};
 use wasmtime_wasi::preview2::command::add_to_linker;
 use wasmtime_wasi::preview2::{Table, WasiCtx, WasiCtxBuilder, WasiView};
+
+use clap::Parser;
 
 bindgen!({
     world: "my-world",
@@ -136,9 +141,19 @@ impl From<levo::portal::my_imports::Color> for macroquad::prelude::Color {
     }
 }
 
+/// Maxiquad
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Path to the WASM file
+    #[arg(short, long)]
+    path: PathBuf,
+}
+
 #[macroquad::main("LevoMacroquad")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let guest_bytes = include_bytes!("../macroquad.wasm");
+    let args = Args::parse();
+    let guest_bytes = read(args.path)?;
     let mut config = Config::new();
     config.wasm_component_model(true).async_support(true);
     let engine = Engine::new(&config)?;
