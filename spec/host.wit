@@ -1,0 +1,45 @@
+package levo:portal;
+
+interface my-imports {
+    enum color {
+      light-gray,
+      gray,
+      dark-gray,
+      yellow,
+      gold,
+      orange,
+      pink,
+      red,
+      maroon,
+      green,
+      lime,
+      dark-green,
+      sky-blue,
+      blue,
+      dark-blue,
+      purple,
+      violet,
+      dark-purple,
+      beige,
+      brown,
+      dark-brown,
+      white,
+      black,
+      blank,
+      magenta,   
+    }
+    clear-background: func(color: color);
+    draw-line: func(start-x: float32, start-y: float32, end-x: float32, end-y: float32, thickness: float32, color: color);
+    draw-rectangle: func(pos-x: float32, pos-y: float32, width: float32, height: float32, color: color);
+    draw-circle: func(center-x: float32, center-y: float32, radius: float32, color: color);
+    draw-text: func(text: string, pos-x: float32, pos-y: float32, font-size: float32, color: color);
+    screen-width: func() -> float32;
+    screen-height: func() -> float32;
+    next-frame: func();
+}
+
+world my-world {
+  import my-imports;
+
+  export main: func();
+}
