@@ -1,14 +1,14 @@
 // src/lib.rs
 
 // use lazy_static::lazy_static; // 1.4.0
-use levo::portal::my_imports::*;
+use maxiquad::macroquad;
 
 // Use a procedural macro to generate bindings for the world we specified in
 // `host.wit`
 wit_bindgen::generate!({
     path: "../../spec",
     // the name of the world in the `*.wit` input file
-    world: "my-world",
+    world: "full",
 
     // For all exported worlds, interfaces, and resources, this specifies what
     // type they're corresponding to in this module. In this case the `MyHost`
@@ -16,6 +16,7 @@ wit_bindgen::generate!({
     // namely the `run` function.
     exports: {
         world: MyWorld,
+
     },
 });
 
@@ -27,19 +28,38 @@ struct MyWorld;
 impl Guest for MyWorld {
     fn main() {
         loop {
-            clear_background(Color::LightGray);
+            macroquad::window::clear_background(macroquad::color::Colors::Lightgray);
 
-            draw_line(40.0, 40.0, 100.0, 200.0, 15.0, Color::Blue);
-            draw_rectangle(screen_width() / 2.0 - 60.0, 100.0, 120.0, 60.0, Color::Blue);
-            draw_circle(
-                screen_width() - 30.0,
-                screen_height() - 30.0,
+            macroquad::shapes::draw_line(
+                40.0,
+                40.0,
+                100.0,
+                200.0,
                 15.0,
-                Color::Yellow,
+                macroquad::color::Colors::Blue,
             );
-            draw_text("HELLO", 20.0, 20.0, 20.0, Color::DarkGray);
+            macroquad::shapes::draw_rectangle(
+                macroquad::window::screen_width() / 2.0 - 60.0,
+                100.0,
+                120.0,
+                60.0,
+                macroquad::color::Colors::Blue,
+            );
+            macroquad::shapes::draw_circle(
+                macroquad::window::screen_width() - 30.0,
+                macroquad::window::screen_height() - 30.0,
+                15.0,
+                macroquad::color::Colors::Yellow,
+            );
+            macroquad::text::draw_text(
+                "HELLO",
+                20.0,
+                20.0,
+                20.0,
+                macroquad::color::Colors::Darkgray,
+            );
 
-            next_frame()
+            macroquad::window::next_frame()
         }
     }
 }
