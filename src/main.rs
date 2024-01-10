@@ -1,7 +1,6 @@
 use std::fs::read;
 use std::path::PathBuf;
 
-use levo::portal::my_imports::{self, Host};
 use macroquad::prelude::*;
 
 use wasmtime::{component::*, StoreLimits, StoreLimitsBuilder};
@@ -12,7 +11,7 @@ use wasmtime_wasi::preview2::{Table, WasiCtx, WasiCtxBuilder, WasiView};
 use clap::Parser;
 
 bindgen!({
-    world: "my-world",
+    world: "full",
     path: "./spec",
     async: {
         only_imports: ["next-frame"],
@@ -40,13 +39,73 @@ impl WasiView for MyCtx {
     }
 }
 
+#[allow(clippy::let_unit_value)]
 #[async_trait::async_trait]
-impl Host for MyCtx {
-    fn clear_background(&mut self, color: my_imports::Color) -> wasmtime::Result<()> {
-        macroquad::prelude::clear_background(color.into());
-        Ok(())
+impl maxiquad::macroquad::color::Host for MyCtx {}
+
+impl From<maxiquad::macroquad::color::Colors> for macroquad::prelude::Color {
+    fn from(value: maxiquad::macroquad::color::Colors) -> Self {
+        match value {
+            maxiquad::macroquad::color::Colors::Lightgray => macroquad::color::colors::LIGHTGRAY,
+            maxiquad::macroquad::color::Colors::Gray => macroquad::color::colors::GRAY,
+            maxiquad::macroquad::color::Colors::Darkgray => macroquad::color::colors::DARKGRAY,
+            maxiquad::macroquad::color::Colors::Yellow => macroquad::color::colors::YELLOW,
+            maxiquad::macroquad::color::Colors::Gold => macroquad::color::colors::GOLD,
+            maxiquad::macroquad::color::Colors::Orange => macroquad::color::colors::ORANGE,
+            maxiquad::macroquad::color::Colors::Pink => macroquad::color::colors::PINK,
+            maxiquad::macroquad::color::Colors::Red => macroquad::color::colors::RED,
+            maxiquad::macroquad::color::Colors::Maroon => macroquad::color::colors::MAROON,
+            maxiquad::macroquad::color::Colors::Green => macroquad::color::colors::GREEN,
+            maxiquad::macroquad::color::Colors::Lime => macroquad::color::colors::LIME,
+            maxiquad::macroquad::color::Colors::Darkgreen => macroquad::color::colors::DARKGREEN,
+            maxiquad::macroquad::color::Colors::Skyblue => macroquad::color::colors::SKYBLUE,
+            maxiquad::macroquad::color::Colors::Blue => macroquad::color::colors::BLUE,
+            maxiquad::macroquad::color::Colors::Darkblue => macroquad::color::colors::DARKBLUE,
+            maxiquad::macroquad::color::Colors::Purple => macroquad::color::colors::PURPLE,
+            maxiquad::macroquad::color::Colors::Violet => macroquad::color::colors::VIOLET,
+            maxiquad::macroquad::color::Colors::Darkpurple => macroquad::color::colors::DARKPURPLE,
+            maxiquad::macroquad::color::Colors::Beige => macroquad::color::colors::BEIGE,
+            maxiquad::macroquad::color::Colors::Brown => macroquad::color::colors::BROWN,
+            maxiquad::macroquad::color::Colors::Darkbrown => macroquad::color::colors::DARKBROWN,
+            maxiquad::macroquad::color::Colors::White => macroquad::color::colors::WHITE,
+            maxiquad::macroquad::color::Colors::Black => macroquad::color::colors::BLACK,
+            maxiquad::macroquad::color::Colors::Blank => macroquad::color::colors::BLANK,
+            maxiquad::macroquad::color::Colors::Magenta => macroquad::color::colors::MAGENTA,
+        }
+    }
+}
+
+#[allow(clippy::let_unit_value)]
+#[async_trait::async_trait]
+impl maxiquad::macroquad::window::Host for MyCtx {
+    fn clear_background(
+        &mut self,
+        color: maxiquad::macroquad::color::Colors,
+    ) -> wasmtime::Result<()> {
+        let color = color.into();
+        let out = macroquad::window::clear_background(color);
+        Ok(out)
     }
 
+    fn screen_width(&mut self) -> wasmtime::Result<f32> {
+        let out = macroquad::window::screen_width();
+        Ok(out)
+    }
+
+    fn screen_height(&mut self) -> wasmtime::Result<f32> {
+        let out = macroquad::window::screen_height();
+        Ok(out)
+    }
+
+    async fn next_frame(&mut self) -> wasmtime::Result<()> {
+        let out = macroquad::window::next_frame().await;
+        Ok(out)
+    }
+}
+
+#[allow(clippy::let_unit_value)]
+#[async_trait::async_trait]
+impl maxiquad::macroquad::shapes::Host for MyCtx {
     fn draw_line(
         &mut self,
         start_x: f32,
@@ -54,10 +113,11 @@ impl Host for MyCtx {
         end_x: f32,
         end_y: f32,
         thickness: f32,
-        color: my_imports::Color,
+        color: maxiquad::macroquad::color::Colors,
     ) -> wasmtime::Result<()> {
-        macroquad::prelude::draw_line(start_x, start_y, end_x, end_y, thickness, color.into());
-        Ok(())
+        let color = color.into();
+        let out = macroquad::shapes::draw_line(start_x, start_y, end_x, end_y, thickness, color);
+        Ok(out)
     }
 
     fn draw_rectangle(
@@ -66,10 +126,11 @@ impl Host for MyCtx {
         pos_y: f32,
         width: f32,
         height: f32,
-        color: my_imports::Color,
+        color: maxiquad::macroquad::color::Colors,
     ) -> wasmtime::Result<()> {
-        macroquad::prelude::draw_rectangle(pos_x, pos_y, width, height, color.into());
-        Ok(())
+        let color = color.into();
+        let out = macroquad::shapes::draw_rectangle(pos_x, pos_y, width, height, color);
+        Ok(out)
     }
 
     fn draw_circle(
@@ -77,67 +138,28 @@ impl Host for MyCtx {
         center_x: f32,
         center_y: f32,
         radius: f32,
-        color: my_imports::Color,
+        color: maxiquad::macroquad::color::Colors,
     ) -> wasmtime::Result<()> {
-        macroquad::prelude::draw_circle(center_x, center_y, radius, color.into());
-        Ok(())
+        let color = color.into();
+        let out = macroquad::shapes::draw_circle(center_x, center_y, radius, color);
+        Ok(out)
     }
+}
 
+#[allow(clippy::let_unit_value)]
+#[async_trait::async_trait]
+impl maxiquad::macroquad::text::Host for MyCtx {
     fn draw_text(
         &mut self,
         text: String,
         pos_x: f32,
         pos_y: f32,
         font_size: f32,
-        color: my_imports::Color,
+        color: maxiquad::macroquad::color::Colors,
     ) -> wasmtime::Result<()> {
-        macroquad::prelude::draw_text(&text, pos_x, pos_y, font_size, color.into());
-        Ok(())
-    }
-
-    fn screen_width(&mut self) -> wasmtime::Result<f32> {
-        Ok(macroquad::prelude::screen_width())
-    }
-
-    fn screen_height(&mut self) -> wasmtime::Result<f32> {
-        Ok(macroquad::prelude::screen_height())
-    }
-
-    async fn next_frame(&mut self) -> wasmtime::Result<()> {
-        macroquad::prelude::next_frame().await;
-        Ok(())
-    }
-}
-
-impl From<levo::portal::my_imports::Color> for macroquad::prelude::Color {
-    fn from(value: levo::portal::my_imports::Color) -> Self {
-        match value {
-            levo::portal::my_imports::Color::LightGray => LIGHTGRAY,
-            levo::portal::my_imports::Color::Gray => GRAY,
-            levo::portal::my_imports::Color::DarkGray => DARKGRAY,
-            levo::portal::my_imports::Color::Yellow => YELLOW,
-            levo::portal::my_imports::Color::Gold => GOLD,
-            levo::portal::my_imports::Color::Orange => ORANGE,
-            levo::portal::my_imports::Color::Pink => PINK,
-            levo::portal::my_imports::Color::Red => RED,
-            levo::portal::my_imports::Color::Maroon => MAROON,
-            levo::portal::my_imports::Color::Green => GREEN,
-            levo::portal::my_imports::Color::Lime => LIME,
-            levo::portal::my_imports::Color::DarkGreen => DARKGREEN,
-            levo::portal::my_imports::Color::SkyBlue => SKYBLUE,
-            levo::portal::my_imports::Color::Blue => BLUE,
-            levo::portal::my_imports::Color::DarkBlue => DARKBLUE,
-            levo::portal::my_imports::Color::Purple => PURPLE,
-            levo::portal::my_imports::Color::Violet => VIOLET,
-            levo::portal::my_imports::Color::DarkPurple => DARKPURPLE,
-            levo::portal::my_imports::Color::Beige => BEIGE,
-            levo::portal::my_imports::Color::Brown => BROWN,
-            levo::portal::my_imports::Color::DarkBrown => DARKBROWN,
-            levo::portal::my_imports::Color::White => WHITE,
-            levo::portal::my_imports::Color::Black => BLACK,
-            levo::portal::my_imports::Color::Blank => BLANK,
-            levo::portal::my_imports::Color::Magenta => MAGENTA,
-        }
+        let color = color.into();
+        let out = macroquad::text::draw_text(&text, pos_x, pos_y, font_size, color);
+        Ok(out)
     }
 }
 
@@ -165,7 +187,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let table = Table::new();
     let memory_size = 50 << 20; // 50 MB
     let wasi = WasiCtxBuilder::new().build();
-    MyWorld::add_to_linker(&mut linker, |state: &mut MyCtx| state)?;
+    Full::add_to_linker(&mut linker, |state: &mut MyCtx| state)?;
     // Set up Wasmtime store
     let mut store = Store::new(
         &engine,
@@ -176,7 +198,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
     );
     store.limiter(|state| &mut state.limits);
-    let (bindings, _) = MyWorld::instantiate_async(&mut store, &component, &linker).await?;
+    let (bindings, _) = Full::instantiate_async(&mut store, &component, &linker).await?;
     bindings.call_main(store).await?;
     Ok(())
 }
