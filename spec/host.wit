@@ -1,45 +1,68 @@
-package levo:portal;
+package maxiquad:macroquad;
 
-interface my-imports {
-    enum color {
-      light-gray,
-      gray,
-      dark-gray,
-      yellow,
-      gold,
-      orange,
-      pink,
-      red,
-      maroon,
-      green,
-      lime,
-      dark-green,
-      sky-blue,
-      blue,
-      dark-blue,
-      purple,
-      violet,
-      dark-purple,
-      beige,
-      brown,
-      dark-brown,
-      white,
-      black,
-      blank,
-      magenta,   
-    }
-    clear-background: func(color: color);
-    draw-line: func(start-x: float32, start-y: float32, end-x: float32, end-y: float32, thickness: float32, color: color);
-    draw-rectangle: func(pos-x: float32, pos-y: float32, width: float32, height: float32, color: color);
-    draw-circle: func(center-x: float32, center-y: float32, radius: float32, color: color);
-    draw-text: func(text: string, pos-x: float32, pos-y: float32, font-size: float32, color: color);
-    screen-width: func() -> float32;
-    screen-height: func() -> float32;
-    next-frame: func();
+/// `macroquad::color`
+interface color {
+  /// `macroquad::color::colors`
+  enum colors {
+    lightgray,
+    gray,
+    darkgray,
+    yellow,
+    gold,
+    orange,
+    pink,
+    red,
+    maroon,
+    green,
+    lime,
+    darkgreen,
+    skyblue,
+    blue,
+    darkblue,
+    purple,
+    violet,
+    darkpurple,
+    beige,
+    brown,
+    darkbrown,
+    white,
+    black,
+    blank,
+    magenta,   
+  }
 }
 
-world my-world {
-  import my-imports;
+/// `macroquad::shapes`
+interface shapes {
+  use color.{colors};
+
+  draw-line: func(start-x: float32, start-y: float32, end-x: float32, end-y: float32, thickness: float32, color: colors);
+  draw-rectangle: func(pos-x: float32, pos-y: float32, width: float32, height: float32, color: colors);
+  draw-circle: func(center-x: float32, center-y: float32, radius: float32, color: colors);
+}
+
+/// `macroquad::text`
+interface text {
+  use color.{colors};
+  
+  draw-text: func(text: string, pos-x: float32, pos-y: float32, font-size: float32, color: colors);
+}
+
+/// `macroquad::window`
+interface window {
+  use color.{colors};
+
+  clear-background: func(color: colors);
+  screen-width: func() -> float32;
+  screen-height: func() -> float32;
+  next-frame: func();
+}
+
+world full {
+  import color;
+  import shapes;
+  import text;
+  import window;
 
   export main: func();
 }
