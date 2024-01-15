@@ -60,7 +60,6 @@ interface window {
 
 interface extra {
   print: func(message: string);
-  request-restart: func() -> bool;
 }
 
 world full {

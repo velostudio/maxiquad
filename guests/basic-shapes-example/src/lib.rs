@@ -59,9 +59,6 @@ impl Guest for MyWorld {
                 macroquad::color::Colors::Darkgray,
             );
 
-            if macroquad::extra::request_restart() {
-                break;
-            }
             macroquad::window::next_frame()
         }
     }
