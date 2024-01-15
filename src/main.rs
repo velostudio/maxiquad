@@ -5,8 +5,7 @@ use macroquad::prelude::*;
 
 use wasmtime::{component::*, StoreLimits, StoreLimitsBuilder};
 use wasmtime::{Config, Engine, Store};
-use wasmtime_wasi::preview2::command::add_to_linker;
-use wasmtime_wasi::preview2::{Table, WasiCtx, WasiCtxBuilder, WasiView};
+use wasmtime_wasi::preview2::{command, Table, WasiCtx, WasiCtxBuilder, WasiView};
 
 use clap::Parser;
 
@@ -163,6 +162,20 @@ impl maxiquad::macroquad::text::Host for MyCtx {
     }
 }
 
+#[allow(clippy::let_unit_value)]
+#[async_trait::async_trait]
+impl maxiquad::macroquad::extra::Host for MyCtx {
+    fn print(&mut self, message: String) -> wasmtime::Result<()> {
+        println!("{}", message);
+        Ok(())
+    }
+
+    fn request_restart(&mut self) -> wasmtime::Result<bool> {
+        println!("host requesting restart");
+        Ok(false)
+    }
+}
+
 /// Maxiquad
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -172,18 +185,29 @@ struct Args {
     path: PathBuf,
 }
 
-#[macroquad::main("LevoMacroquad")]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
     let guest_bytes = read(args.path)?;
     let mut config = Config::new();
     config.wasm_component_model(true).async_support(true);
     let engine = Engine::new(&config)?;
-    let component = Component::new(&engine, guest_bytes)?;
 
+    macroquad::Window::new("LevoMacroquad", {
+        let engine = engine.clone();
+        async {
+            if let Err(err) = app_main(guest_bytes, engine).await {
+                macroquad::logging::error!("Error: {:?}", err);
+            }
+        }
+    });
+    Ok(())
+}
+
+async fn app_main(guest_bytes: Vec<u8>, engine: Engine) -> Result<(), Box<dyn std::error::Error>> {
     // Set up Wasmtime linker
     let mut linker = Linker::new(&engine);
-    add_to_linker(&mut linker)?;
+    command::add_to_linker(&mut linker)?;
+
     let table = Table::new();
     let memory_size = 50 << 20; // 50 MB
     let wasi = WasiCtxBuilder::new().build();
@@ -198,7 +222,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
     );
     store.limiter(|state| &mut state.limits);
+    let component = Component::new(&engine, guest_bytes)?;
     let (bindings, _) = Full::instantiate_async(&mut store, &component, &linker).await?;
-    bindings.call_main(store).await?;
+    use futures::FutureExt;
+    futures::select! {
+        _ = bindings.call_main(store).fuse() => {}
+    };
+    // bindings.call_main(store).await?;
+    unreachable!();
     Ok(())
 }

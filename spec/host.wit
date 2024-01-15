@@ -58,11 +58,17 @@ interface window {
   next-frame: func();
 }
 
+interface extra {
+  print: func(message: string);
+  request-restart: func() -> bool;
+}
+
 world full {
   import color;
   import shapes;
   import text;
   import window;
+  import extra;
 
   export main: func();
 }
