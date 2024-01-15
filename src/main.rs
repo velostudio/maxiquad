@@ -171,7 +171,6 @@ impl maxiquad::macroquad::extra::Host for MyCtx {
     }
 
     fn request_restart(&mut self) -> wasmtime::Result<bool> {
-        println!("host requesting restart");
         Ok(false)
     }
 }
@@ -187,19 +186,26 @@ struct Args {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
-    let guest_bytes = read(args.path)?;
     let mut config = Config::new();
     config.wasm_component_model(true).async_support(true);
     let engine = Engine::new(&config)?;
 
-    macroquad::Window::new("LevoMacroquad", {
-        let engine = engine.clone();
-        async {
-            if let Err(err) = app_main(guest_bytes, engine).await {
-                macroquad::logging::error!("Error: {:?}", err);
+    loop {
+        let guest_bytes = read(&args.path)?;
+        println!("opening macroquad window");
+        macroquad::Window::new("LevoMacroquad", {
+            let engine = engine.clone();
+            async {
+                // <<--- actually this is where we could add the race/select
+                app_main(guest_bytes, engine).await.unwrap();
+                // use futures::FutureExt;
+                // futures::select! {
+                //     _ = app_main(guest_bytes, engine).fuse() => {}
+                // };
+                println!("macroquad window closed because guest finished execution");
             }
-        }
-    });
+        });
+    }
     Ok(())
 }
 
@@ -224,11 +230,7 @@ async fn app_main(guest_bytes: Vec<u8>, engine: Engine) -> Result<(), Box<dyn st
     store.limiter(|state| &mut state.limits);
     let component = Component::new(&engine, guest_bytes)?;
     let (bindings, _) = Full::instantiate_async(&mut store, &component, &linker).await?;
-    use futures::FutureExt;
-    futures::select! {
-        _ = bindings.call_main(store).fuse() => {}
-    };
-    // bindings.call_main(store).await?;
+    bindings.call_main(store).await?;
     unreachable!();
     Ok(())
 }
