@@ -58,11 +58,16 @@ interface window {
   next-frame: func();
 }
 
+interface extra {
+  print: func(message: string);
+}
+
 world full {
   import color;
   import shapes;
   import text;
   import window;
+  import extra;
 
   export main: func();
 }

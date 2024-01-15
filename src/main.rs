@@ -3,12 +3,11 @@ use std::path::PathBuf;
 
 use macroquad::prelude::*;
 
+use clap::Parser;
+use notify::{RecursiveMode, Watcher};
 use wasmtime::{component::*, StoreLimits, StoreLimitsBuilder};
 use wasmtime::{Config, Engine, Store};
-use wasmtime_wasi::preview2::command::add_to_linker;
-use wasmtime_wasi::preview2::{Table, WasiCtx, WasiCtxBuilder, WasiView};
-
-use clap::Parser;
+use wasmtime_wasi::preview2::{command, Table, WasiCtx, WasiCtxBuilder, WasiView};
 
 bindgen!({
     world: "full",
@@ -22,6 +21,7 @@ struct MyCtx {
     table: Table,
     wasi: WasiCtx,
     limits: StoreLimits,
+    rx: async_channel::Receiver<bool>,
 }
 
 impl WasiView for MyCtx {
@@ -98,8 +98,12 @@ impl maxiquad::macroquad::window::Host for MyCtx {
     }
 
     async fn next_frame(&mut self) -> wasmtime::Result<()> {
-        let out = macroquad::window::next_frame().await;
-        Ok(out)
+        if let Ok(true) = self.rx.try_recv() {
+            Err(anyhow::anyhow!("restart requested"))
+        } else {
+            let out = macroquad::window::next_frame().await;
+            Ok(out)
+        }
     }
 }
 
@@ -163,6 +167,15 @@ impl maxiquad::macroquad::text::Host for MyCtx {
     }
 }
 
+#[allow(clippy::let_unit_value)]
+#[async_trait::async_trait]
+impl maxiquad::macroquad::extra::Host for MyCtx {
+    fn print(&mut self, message: String) -> wasmtime::Result<()> {
+        println!("{}", message);
+        Ok(())
+    }
+}
+
 /// Maxiquad
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -172,18 +185,43 @@ struct Args {
     path: PathBuf,
 }
 
-#[macroquad::main("LevoMacroquad")]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
-    let guest_bytes = read(args.path)?;
     let mut config = Config::new();
     config.wasm_component_model(true).async_support(true);
     let engine = Engine::new(&config)?;
-    let component = Component::new(&engine, guest_bytes)?;
+    let (tx, rx) = async_channel::bounded(1);
+    let mut watcher = notify::recommended_watcher(move |res| match res {
+        Ok(_event) => {
+            let _ = tx.try_send(true);
+        }
+        Err(e) => println!("watch error: {:?}", e),
+    })?;
+    watcher.watch(&args.path, RecursiveMode::Recursive)?;
+    println!("opening macroquad window");
+    macroquad::Window::new("LevoMacroquad", {
+        async move {
+            loop {
+                let guest_bytes = read(&args.path).unwrap();
+                let engine = engine.clone();
+                let rx = rx.clone();
+                let _ = app_main(guest_bytes, engine, rx).await;
+                println!("guest finished execution: hot-reloading...")
+            }
+        }
+    });
+    Ok(())
+}
 
+async fn app_main(
+    guest_bytes: Vec<u8>,
+    engine: Engine,
+    rx: async_channel::Receiver<bool>,
+) -> Result<(), Box<dyn std::error::Error>> {
     // Set up Wasmtime linker
     let mut linker = Linker::new(&engine);
-    add_to_linker(&mut linker)?;
+    command::add_to_linker(&mut linker)?;
+
     let table = Table::new();
     let memory_size = 50 << 20; // 50 MB
     let wasi = WasiCtxBuilder::new().build();
@@ -195,9 +233,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             table,
             wasi,
             limits: StoreLimitsBuilder::new().memory_size(memory_size).build(),
+            rx,
         },
     );
     store.limiter(|state| &mut state.limits);
+    let component = Component::new(&engine, guest_bytes)?;
     let (bindings, _) = Full::instantiate_async(&mut store, &component, &linker).await?;
     bindings.call_main(store).await?;
     Ok(())
