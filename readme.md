@@ -1,6 +1,6 @@
 _WIP_
 
-<img src="https://raw.githubusercontent.com/velostudio/levo/main/maxiquad.png" width="128" />
+<img src="https://raw.githubusercontent.com/velostudio/maxiquad/main/maxiquad.png" width="128" />
 
 https://velostudio.github.io/blog/maxiquad.html
 
