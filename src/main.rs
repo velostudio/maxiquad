@@ -1,10 +1,15 @@
 use std::fs::read;
 use std::path::PathBuf;
+use std::time::Duration;
 
 use macroquad::prelude::*;
 
 use clap::Parser;
-use notify::{RecursiveMode, Watcher};
+use notify_debouncer_full::{
+    new_debouncer,
+    notify::{RecursiveMode, Watcher},
+    DebounceEventResult,
+};
 use wasmtime::{component::*, StoreLimits, StoreLimitsBuilder};
 use wasmtime::{Config, Engine, Store};
 use wasmtime_wasi::preview2::{command, Table, WasiCtx, WasiCtxBuilder, WasiView};
@@ -191,13 +196,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     config.wasm_component_model(true).async_support(true);
     let engine = Engine::new(&config)?;
     let (tx, rx) = async_channel::bounded(1);
-    let mut watcher = notify::recommended_watcher(move |res| match res {
-        Ok(_event) => {
-            let _ = tx.try_send(true);
-        }
-        Err(e) => println!("watch error: {:?}", e),
-    })?;
-    watcher.watch(&args.path, RecursiveMode::Recursive)?;
+    let mut debouncer = new_debouncer(
+        Duration::from_millis(250),
+        None,
+        move |result: DebounceEventResult| match result {
+            Ok(_event) => {
+                let _ = tx.try_send(true);
+            }
+            Err(e) => println!("watch error: {:?}", e),
+        },
+    )?;
+    debouncer
+        .watcher()
+        .watch(&args.path, RecursiveMode::Recursive)?;
     println!("opening macroquad window");
     macroquad::Window::new("LevoMacroquad", {
         async move {
