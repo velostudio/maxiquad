@@ -1,6 +1,6 @@
-use std::fs::read;
 use std::path::PathBuf;
 use std::time::Duration;
+use std::{fs::read, path::Path};
 
 use macroquad::prelude::*;
 
@@ -27,6 +27,7 @@ struct MyCtx {
     wasi: WasiCtx,
     limits: StoreLimits,
     rx: async_channel::Receiver<bool>,
+    allow_read: Option<PathBuf>,
 }
 
 impl WasiView for MyCtx {
@@ -188,6 +189,12 @@ struct Args {
     /// Path to the WASM file
     #[arg(short, long)]
     path: PathBuf,
+    /// Allow read access to this path
+    #[arg(short, long)]
+    allow_read: Option<PathBuf>,
+    /// The maximum number of bytes a linear memory can grow to for the guest in MB. Default 50MB.
+    #[arg(short, long)]
+    max_memory_mb: Option<usize>,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -216,7 +223,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let guest_bytes = read(&args.path).unwrap();
                 let engine = engine.clone();
                 let rx = rx.clone();
-                let _ = app_main(guest_bytes, engine, rx).await;
+                let allow_read = args.allow_read.clone();
+                let max_memory_mb = args.max_memory_mb.clone();
+                let _ = app_main(guest_bytes, engine, rx, allow_read, max_memory_mb).await;
                 println!("guest finished execution: hot-reloading...")
             }
         }
@@ -228,13 +237,15 @@ async fn app_main(
     guest_bytes: Vec<u8>,
     engine: Engine,
     rx: async_channel::Receiver<bool>,
+    allow_read: Option<PathBuf>,
+    max_memory_mb: Option<usize>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Set up Wasmtime linker
     let mut linker = Linker::new(&engine);
     command::add_to_linker(&mut linker)?;
 
     let table = Table::new();
-    let memory_size = 50 << 20; // 50 MB
+    let memory_size = max_memory_mb.unwrap_or(50) << 20; // default 50 MB
     let wasi = WasiCtxBuilder::new().build();
     Full::add_to_linker(&mut linker, |state: &mut MyCtx| state)?;
     // Set up Wasmtime store
@@ -245,6 +256,7 @@ async fn app_main(
             wasi,
             limits: StoreLimitsBuilder::new().memory_size(memory_size).build(),
             rx,
+            allow_read,
         },
     );
     store.limiter(|state| &mut state.limits);
@@ -252,4 +264,49 @@ async fn app_main(
     let (bindings, _) = Full::instantiate_async(&mut store, &component, &linker).await?;
     bindings.call_main(store).await?;
     Ok(())
+}
+
+fn validate_read_path(path: String, allow_read: Option<PathBuf>) -> Result<PathBuf, String> {
+    if let Some(allow_read) = allow_read.as_ref() {
+        let canonicalized_allow_read = match canonicalize_path(Path::new(allow_read)) {
+            Ok(path) => path,
+            Err(e) => {
+                let msg = format!("Error canonicalizing allow_read path: {}", e.to_string());
+                return Err(msg);
+            }
+        };
+
+        let full_path = canonicalized_allow_read.join(&path);
+        let canonicalized_full_path = match canonicalize_path(&full_path) {
+            Ok(path) => path,
+            Err(e) => {
+                let msg = format!("Error canonicalizing full path: {}", e.to_string());
+                return Err(msg);
+            }
+        };
+
+        if is_path_within_allowed_directory(&canonicalized_allow_read, &canonicalized_full_path) {
+            Ok(canonicalized_full_path)
+        } else {
+            let msg = format!(
+                "Path is not within allowed directory. Allowed: {}. Path: {}",
+                &canonicalized_allow_read.display(),
+                &canonicalized_full_path.display()
+            );
+            Err(msg)
+        }
+    } else {
+        let msg = format!("--allow_read is not provided");
+        Err(msg)
+    }
+}
+
+fn canonicalize_path(path: &Path) -> Result<PathBuf, String> {
+    Path::new(path)
+        .canonicalize()
+        .map_err(|e| format!("Error canonicalizing path {}: {}", path.display(), e))
+}
+
+fn is_path_within_allowed_directory(allowed_path: &Path, target_path: &Path) -> bool {
+    target_path.starts_with(allowed_path)
 }
