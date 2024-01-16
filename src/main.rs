@@ -192,9 +192,9 @@ struct Args {
     /// Allow read access to this path
     #[arg(short, long)]
     allow_read: Option<PathBuf>,
-    /// The maximum number of bytes a linear memory can grow to for the guest in MB. Default 50MB.
-    #[arg(short, long)]
-    max_memory_mb: Option<usize>,
+    /// The maximum number of bytes a linear memory can grow to for the guest in MB.
+    #[arg(short, long, default_value_t = 50)]
+    max_memory_mb: usize,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -224,8 +224,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let engine = engine.clone();
                 let rx = rx.clone();
                 let allow_read = args.allow_read.clone();
-                let max_memory_mb = args.max_memory_mb.clone();
-                let _ = app_main(guest_bytes, engine, rx, allow_read, max_memory_mb).await;
+                let _ = app_main(guest_bytes, engine, rx, allow_read, args.max_memory_mb).await;
                 println!("guest finished execution: hot-reloading...")
             }
         }
@@ -238,14 +237,14 @@ async fn app_main(
     engine: Engine,
     rx: async_channel::Receiver<bool>,
     allow_read: Option<PathBuf>,
-    max_memory_mb: Option<usize>,
+    max_memory_mb: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Set up Wasmtime linker
     let mut linker = Linker::new(&engine);
     command::add_to_linker(&mut linker)?;
 
     let table = Table::new();
-    let memory_size = max_memory_mb.unwrap_or(50) << 20; // default 50 MB
+    let memory_size = max_memory_mb << 20;
     let wasi = WasiCtxBuilder::new().build();
     Full::add_to_linker(&mut linker, |state: &mut MyCtx| state)?;
     // Set up Wasmtime store
