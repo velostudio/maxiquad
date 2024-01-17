@@ -192,9 +192,9 @@ struct Args {
     /// Allow read access to this path
     #[arg(short, long)]
     allow_read: Option<PathBuf>,
-    /// The maximum number of bytes a linear memory can grow to for the guest in MB.
+    /// The maximum number of MB a linear memory can grow to for the guest.
     #[arg(short, long, default_value_t = 50)]
-    max_memory_mb: usize,
+    max_memory_mb: u16,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -237,14 +237,14 @@ async fn app_main(
     engine: Engine,
     rx: async_channel::Receiver<bool>,
     allow_read: Option<PathBuf>,
-    max_memory_mb: usize,
+    max_memory_mb: u16,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Set up Wasmtime linker
     let mut linker = Linker::new(&engine);
     command::add_to_linker(&mut linker)?;
 
     let table = Table::new();
-    let memory_size = max_memory_mb << 20;
+    let memory_size = (max_memory_mb as usize) << 20;
     let wasi = WasiCtxBuilder::new().build();
     Full::add_to_linker(&mut linker, |state: &mut MyCtx| state)?;
     // Set up Wasmtime store
